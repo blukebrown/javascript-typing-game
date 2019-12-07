@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Typing Game</title>
+    <!--    <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>-->
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.8.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css?family=Raleway&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            padding: 0;
+            margin: 0;
+            font-family: 'Raleway', sans-serif;
+        }
+
+        #container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+
+            width: 100vw;
+            height: 100vh;
+            background-color: #FBAB7E;
+            background-image: linear-gradient(62deg, #FBAB7E 0%, #F7CE68 100%);
+
+        }
+
+        #timer-box {
+            width: 200px;
+            height: 75px;
+            border: solid 2px black;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3em;
+            background-color: #FFFFFF;
+            box-shadow: 5px 7px 0px rgba(0, 0, 0, .5);
+        }
+
+        #word-box {
+            border: solid 2px black;
+
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+
+            font-size: 3em;
+            padding: 1em;
+            margin: 16px 0;
+
+            background-color: #FFFFFF;
+
+            box-shadow: 5px 7px 0px rgba(0, 0, 0, .5);
+        }
+
+        #input-box {
+            width: 320px;
+            height: 32px;
+            font-size: 24px;
+            text-align: center;
+            background-color: #FFFFFF;
+            border: 2px solid #000000;
+        }
+
+        .explodedWordClass {}
+
+        .correctLetterClass {
+            color: green;
+        }
+
+        .incorrectLetterClass {
+            color: red;
+        }
+
+        .timer-button {
+            text-decoration: none;
+            color: black;
+            border: 2px solid black;
+            text-align: center;
+            width: 120px;
+            height: 25px;
+            margin: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #FFFFFF;
+            box-shadow: 5px 7px 0px rgba(0, 0, 0, .5);
+            transition: all .4s ease;
+        }
+
+        .timer-button:hover {
+            background-color: black;
+            color: white;
+            box-shadow: none;
+        }
+
+        #popup {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: black;
+            color: white;
+            width: 80vw;
+            height: 80vh;
+
+        }
+
+        #words-typed {
+            font-size: 1.6em;
+        }
+
+        #close-button {
+            position: absolute;
+            right: 16px;
+            top: 16px;
+            font-size: 2em;
+            color: #FFFFFF;
+            z-index: 100;
+        }
+
+    </style>
+</head>
+
+<body>
+    <main id="container">
+        <div id="timer-box">
+            :<span id="s_seconds">60</span>
+        </div>
+        <div id="word-box"></div>
+        <input id="input-box" type="text" />
+        <a href="#" class="timer-button" id="start">Start</a>
+        <a href="#" class="timer-button" id="stop">Stop</a>
+        <a href="#" class="timer-button" id="reset">Reset</a>
+        <div id="popup">
+            <i id="close-button" class="fas fa-times"></i>
+            <h2>YOU TYPED</h2>
+            <span id="words-typed"></span>
+            <h2>WORDS IN A MINUTE</h2>
+        </div>
+    </main>
+</body>
+<script>
+    $(document).ready(function() {
+        // Set global word array and index
+        let wordArray = [];
+        let index = 0;
+
+        // Takes a word as a string parameter, makes an array of the letters, displays the letters together as a word by appending one by one to the DOM
+        function displayWord(word) {
+            let explodedWord = word.split("");
+            for (let i = 0; i < explodedWord.length; i++) {
+                $("#word-box").append("<span class='explodedWordClass letter" + i + "'>" + explodedWord[i] + "</span>");
+            }
+        }
+
+        // GET from API array of random words
+        function getWordArray() {
+            $.get("https://random-word-api.herokuapp.com/word?key=Y9LSLEO9&number=500", function(data, status) {
+                // If the request is successful, do stuff, otherwise log "unsuccessful"
+                if (status == "success") {
+                    // Set global array equal to data received
+                    wordArray = data;
+                    console.log(wordArray);
+                    // Turn first word into an array of the letters
+                    let explodedWord = wordArray[0].split("");
+                    // Make sure the word box is empty (if game reset)
+                    $("#word-box").empty();
+                    // Append word letter-by-letter to DOM
+                    for (let i = 0; i < explodedWord.length; i++) {
+                        $("#word-box").append("<span class='explodedWordClass letter" + i + "'>" + explodedWord[i] + "</span>");
+                    }
+                    // Reset index (if game reset)
+                    index = 0;
+//                    startStopwatch;
+                } else {
+                    console.log("Status: unsuccessful");
+                }
+            });
+        }
+
+        wordArray = getWordArray();
+        
+
+        // When a change occurs in the input box, run this code
+        $("#input-box").on('input', function() {
+            // Declare a variable for the input (typed) word
+            let typedWord;
+            // Declare and initialize an array of the letters from the current word (ie ["p", "i", "e"] from ["pie", ...])
+            let explodedWord = wordArray[index].split("");
+            // If the typed word and displayed word match, run this code
+            if ($(this).val() == wordArray[index]) {
+                // Clear the old word
+                $("#word-box").text("");
+                // Clear the input box
+                $("#input-box").val("");
+                // Increment the index by one
+                index++;
+                // Call the displayWord function, passing in the next word as a parameter
+                displayWord(wordArray[index]);
+            } else {
+                // Split the typed word into an array of letters
+                typedWord = $(this).val().split("");
+                // Validate the typed letters vs the word letters
+                for (let i = 0; i < typedWord.length; i++) {
+                    if (typedWord[i] == explodedWord[i]) {
+                        // turn letter green
+                        $(".letter" + i).removeClass("incorrectLetterClass");
+                        $(".letter" + i).addClass("correctLetterClass");
+                    } else {
+                        // turn letter red
+                        $(".letter" + i).removeClass("correctLetterClass");
+                        $(".letter" + i).addClass("incorrectLetterClass");
+                    }
+                }
+                // if typed word is less than word length (aka you backspaced), remove styling from letters
+                for (let j = typedWord.length; j < explodedWord.length; j++) {
+                    $(".letter" + j).removeClass("incorrectLetterClass");
+                    $(".letter" + j).removeClass("correctLetterClass");
+                }
+            }
+        });
+        
+        
+        // Timer variables
+        var stopwatchTimer;
+        var gameTimer;
+        var elapsedMinutes = 0;
+        var elapsedSeconds = 60;
+        var elapsedMilliseconds = 0;
+
+        // pad the extra digits
+        var padSingleDigit = function(num) {
+            if (num < 10) {
+                return "0" + num;
+            } else {
+                return num;
+            }
+        };
+
+        // tick timer
+        var tickStopwatch = function() {
+            // increment milliseconds by 10 milliseconds
+            elapsedMilliseconds += 10;
+            // if milliseconds total 1000, increment seconds by one and reset milliseconds to zero
+            if (elapsedMilliseconds == 1000) {
+                elapsedMilliseconds = 0;
+                elapsedSeconds--;
+            }
+
+            if (elapsedSeconds == 0) {
+                clearInterval(stopwatchTimer);
+                $("#words-typed").text(index);
+                $("#popup").css("display", "flex");
+            }
+
+            //display new stopwatch time
+            $("#s_seconds").text(padSingleDigit(elapsedSeconds));
+        };
+
+        // event handler functions
+        var startStopwatch = function(evt) {
+            console.log("btn clicked and startstopwatch working");
+            // prevent default action of link
+            evt.preventDefault();
+            // do first tick of stop watch and then set interval timer to tick 
+            tickStopwatch;
+            // stop watch every 10 milliseconds. Store timer object in stopwatchTimer 
+            stopwatchTimer = setInterval(tickStopwatch, 10);
+        };
+
+        var stopStopwatch = function(evt) {
+            // prevent default action of link
+            evt.preventDefault();
+            // stop timer
+            clearInterval(stopwatchTimer);
+        };
+
+        var resetStopwatch = function(evt) {
+            // prevent default action of link
+            evt.preventDefault();
+            // stop timer
+            clearInterval(stopwatchTimer);
+            // reset elapsed variables and clear stopwatch display
+            elapsedMinutes = 0;
+            elapsedSeconds = 60;
+            elapsedMilliseconds = 0;
+            
+            getWordArray();
+
+            $("#s_seconds").text("60");
+        };
+
+        // set up stopwatch event handlers
+        $("#start").click(function(e) {
+            startStopwatch(e);
+        });
+        $("#stop").click(function(e) {
+            stopStopwatch(e);
+        });
+        $("#reset").click(function(e) {
+            resetStopwatch(e);
+        });
+
+        $("#popup").click(e => {
+            $("#popup").css("display", "none");
+        });
+    });
+</script>
+
+</html>
